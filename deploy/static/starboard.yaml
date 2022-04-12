@@ -5,7 +5,7 @@ metadata:
   name: vulnerabilityreports.aquasecurity.github.io
   labels:
     app.kubernetes.io/managed-by: starboard
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
 spec:
   group: aquasecurity.github.io
   versions:
@@ -249,7 +249,7 @@ metadata:
   name: configauditreports.aquasecurity.github.io
   labels:
     app.kubernetes.io/managed-by: starboard
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
 spec:
   group: aquasecurity.github.io
   versions:
@@ -267,9 +267,9 @@ spec:
           description: The age of the report
         - jsonPath: .report.summary.criticalCount
           type: integer
-          name: Critial
+          name: Critical
           priority: 1
-          description: The number of failed checks with critial severity
+          description: The number of failed checks with critical severity
         - jsonPath: .report.summary.highCount
           type: integer
           name: High
@@ -306,7 +306,7 @@ metadata:
   name: clusterconfigauditreports.aquasecurity.github.io
   labels:
     app.kubernetes.io/managed-by: starboard
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
 spec:
   group: aquasecurity.github.io
   versions:
@@ -324,9 +324,9 @@ spec:
           description: The age of the report
         - jsonPath: .report.summary.criticalCount
           type: integer
-          name: Critial
+          name: Critical
           priority: 1
-          description: The number of failed checks with critial severity
+          description: The number of failed checks with critical severity
         - jsonPath: .report.summary.highCount
           type: integer
           name: High
@@ -362,7 +362,7 @@ metadata:
   name: ciskubebenchreports.aquasecurity.github.io
   labels:
     app.kubernetes.io/managed-by: starboard
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
 spec:
   group: aquasecurity.github.io
   versions:
@@ -412,7 +412,7 @@ metadata:
   name: clustercompliancereports.aquasecurity.github.io
   labels:
     app.kubernetes.io/managed-by: starboard
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
 spec:
   group: aquasecurity.github.io
   scope: Cluster
@@ -549,7 +549,7 @@ metadata:
   name: clustercompliancedetailreports.aquasecurity.github.io
   labels:
     app.kubernetes.io/managed-by: starboard
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
 spec:
   group: aquasecurity.github.io
   versions:
@@ -589,6 +589,11 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: starboard-system
+  labels:
+    app.kubernetes.io/name: starboard-operator
+    app.kubernetes.io/instance: starboard-operator
+    app.kubernetes.io/version: "0.15.3"
+    app.kubernetes.io/managed-by: kubectl
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -598,7 +603,7 @@ metadata:
   labels:
     app.kubernetes.io/name: starboard-operator
     app.kubernetes.io/instance: starboard-operator
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
     app.kubernetes.io/managed-by: kubectl
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -608,7 +613,7 @@ metadata:
   labels:
     app.kubernetes.io/name: starboard-operator
     app.kubernetes.io/instance: starboard-operator
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
     app.kubernetes.io/managed-by: kubectl
 rules:
   - apiGroups:
@@ -757,7 +762,7 @@ metadata:
   labels:
     app.kubernetes.io/name: starboard-operator
     app.kubernetes.io/instance: starboard-operator
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
     app.kubernetes.io/managed-by: kubectl
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -776,7 +781,7 @@ metadata:
   labels:
     app.kubernetes.io/name: starboard-operator
     app.kubernetes.io/instance: starboard-operator
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
     app.kubernetes.io/managed-by: kubectl
 ---
 apiVersion: v1
@@ -787,7 +792,7 @@ metadata:
   labels:
     app.kubernetes.io/name: starboard-operator
     app.kubernetes.io/instance: starboard-operator
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
     app.kubernetes.io/managed-by: kubectl
 ---
 apiVersion: v1
@@ -798,12 +803,13 @@ metadata:
   labels:
     app.kubernetes.io/name: starboard-operator
     app.kubernetes.io/instance: starboard-operator
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
     app.kubernetes.io/managed-by: kubectl
 data:
   vulnerabilityReports.scanner: "Trivy"
   configAuditReports.scanner: "Polaris"
-  kube-bench.imageRef: "docker.io/aquasec/kube-bench:v0.6.5"
+  kube-bench.imageRef: "docker.io/aquasec/kube-bench:v0.6.6"
+  compliance.failEntriesLimit: "10"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -813,13 +819,14 @@ metadata:
   labels:
     app.kubernetes.io/name: starboard-operator
     app.kubernetes.io/instance: starboard-operator
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
     app.kubernetes.io/managed-by: kubectl
 data:
-  trivy.imageRef: "docker.io/aquasec/trivy:0.24.2"
+  trivy.imageRef: "docker.io/aquasec/trivy:0.25.2"
   trivy.mode: "Standalone"
   trivy.severity: "UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL"
   trivy.timeout: "5m0s"
+  trivy.dbRepository: "ghcr.io/aquasecurity/trivy-db"
   trivy.resources.requests.cpu: 100m
   trivy.resources.requests.memory: 100M
   trivy.resources.limits.cpu: 500m
@@ -833,7 +840,7 @@ metadata:
   labels:
     app.kubernetes.io/name: starboard-operator
     app.kubernetes.io/instance: starboard-operator
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
     app.kubernetes.io/managed-by: kubectl
 data:
   polaris.imageRef: "quay.io/fairwinds/polaris:4.2"
@@ -1034,7 +1041,7 @@ metadata:
   labels:
     app.kubernetes.io/name: starboard-operator
     app.kubernetes.io/instance: starboard-operator
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
     app.kubernetes.io/managed-by: kubectl
 data:
   library.kubernetes.rego: "package lib.kubernetes\n\ndefault is_gatekeeper = false\n\nis_gatekeeper
@@ -1637,7 +1644,8 @@ data:
     \"v1.0.0\",\n\t\"severity\": \"MEDIUM\",\n\t\"type\": \"Kubernetes Security Check\",\n\t\"description\":
     \"ensure that User pods are not placed in kube-system namespace\",\n\t\"recommended_actions\":
     \"Deploy the use pods into a designated namespace which is not kube-system.\",\n\t\"url\":
-    \"https://kubernetes.io/docs/reference/setup-tools/kubeadm/implementation-details/\",\n}\n\ndeny[res]
+    \"https://kubernetes.io/docs/reference/setup-tools/kubeadm/implementation-details/\",\n}\n\n__rego_input__
+    := {\n\t\"combine\": false,\n\t\"selector\": [{\"type\": \"kubernetes\"}],\n}\n\ndeny[res]
     {\n\tsystemNamespaceInUse(input.metadata, input.spec)\n\tmsg := sprintf(\"%s '%s'
     should not be set with 'kube-system' namespace\", [kubernetes.kind, kubernetes.name])\n\tres
     := {\n\t\t\"msg\": msg,\n\t\t\"id\": __rego_metadata__.id,\n\t\t\"title\": __rego_metadata__.title,\n\t\t\"severity\":
@@ -1656,7 +1664,8 @@ data:
     \"v1.0.0\",\n\t\"severity\": \"MEDIUM\",\n\t\"type\": \"Kubernetes Security Check\",\n\t\"description\":
     \"ensure that Pod specifications disable the secret token being mounted by setting
     automountServiceAccountToken: false\",\n\t\"recommended_actions\": \"Remove 'container.apparmor.security.beta.kubernetes.io'
-    annotation or set it to 'runtime/default'.\",\n\t\"url\": \"https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/#serviceaccount-admission-controller\",\n}\n\ndeny[res]
+    annotation or set it to 'runtime/default'.\",\n\t\"url\": \"https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/#serviceaccount-admission-controller\",\n}\n\n__rego_input__
+    := {\n\t\"combine\": false,\n\t\"selector\": [{\"type\": \"kubernetes\"}],\n}\n\ndeny[res]
     {\n\tmountServiceAccountToken(input.spec)\n\tmsg := kubernetes.format(sprintf(\"Container
     of %s '%s' should set 'spec.automountServiceAccountToken' to false\", [kubernetes.kind,
     kubernetes.name]))\n\n\tres := {\n\t\t\"msg\": msg,\n\t\t\"id\": __rego_metadata__.id,\n\t\t\"title\":
@@ -1731,7 +1740,8 @@ data:
     \"ensure that network policies selectors are applied to pods or namespaces to
     restricted ingress and egress traffic within the pod network\",\n\t\"recommended_actions\":
     \"create network policies and ensure that pods are selected using the podSelector
-    and/or the namespaceSelector options\",\n\t\"url\": \"https://kubernetes.io/docs/tasks/administer-cluster/declare-network-policy/\",\n}\n\ndeny[res]
+    and/or the namespaceSelector options\",\n\t\"url\": \"https://kubernetes.io/docs/tasks/administer-cluster/declare-network-policy/\",\n}\n\n__rego_input__
+    := {\n\t\"combine\": false,\n\t\"selector\": [{\"type\": \"kubernetes\"}],\n}\n\ndeny[res]
     {\n\tnot hasSelector(input.spec)\n\tmsg := \"Network policy should uses podSelector
     and/or the namespaceSelector to restrict ingress and egress traffic within the
     Pod network\"\n\tres := {\n\t\t\"msg\": msg,\n\t\t\"id\": __rego_metadata__.id,\n\t\t\"title\":
@@ -1900,7 +1910,7 @@ metadata:
   labels:
     app.kubernetes.io/name: starboard-operator
     app.kubernetes.io/instance: starboard-operator
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
     app.kubernetes.io/managed-by: kubectl
   annotations:
     prometheus.io/path: /metrics
@@ -1923,7 +1933,7 @@ metadata:
   labels:
     app.kubernetes.io/name: starboard-operator
     app.kubernetes.io/instance: starboard-operator
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
     app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 1
@@ -1943,13 +1953,15 @@ spec:
       automountServiceAccountToken: true
       containers:
         - name: "starboard-operator"
-          image: "docker.io/aquasec/starboard-operator:0.14.1"
+          image: "docker.io/aquasec/starboard-operator:0.15.3"
           imagePullPolicy: IfNotPresent
           env:
             - name: OPERATOR_NAMESPACE
               value: "starboard-system"
             - name: OPERATOR_TARGET_NAMESPACES
-              value: "default"
+              value: ""
+            - name: OPERATOR_EXCLUDE_NAMESPACES
+              value: "kube-system,starboard-system"
             - name: OPERATOR_SERVICE_ACCOUNT
               value: "starboard-operator"
             - name: OPERATOR_LOG_DEV_MODE
@@ -1972,8 +1984,6 @@ spec:
               value: "true"
             - name: OPERATOR_VULNERABILITY_SCANNER_ENABLED
               value: "true"
-            - name: OPERATOR_CLUSTER_COMPLIANCE_ENABLED
-              value: "true"
             - name: OPERATOR_VULNERABILITY_SCANNER_SCAN_ONLY_CURRENT_REVISIONS
               value: "false"
             - name: OPERATOR_VULNERABILITY_SCANNER_REPORT_TTL
@@ -1981,6 +1991,8 @@ spec:
             - name: OPERATOR_CONFIG_AUDIT_SCANNER_ENABLED
               value: "false"
             - name: OPERATOR_CONFIG_AUDIT_SCANNER_BUILTIN
+              value: "true"
+            - name: OPERATOR_CLUSTER_COMPLIANCE_ENABLED
               value: "true"
           ports:
             - name: metrics
@@ -2014,296 +2026,3 @@ spec:
             readOnlyRootFilesystem: true
       securityContext:
         {}
----
-apiVersion: aquasecurity.github.io/v1alpha1
-kind: ClusterComplianceReport
-metadata:
-  name: nsa
-  labels:
-    app.kubernetes.io/name: starboard-operator
-    app.kubernetes.io/instance: starboard-operator
-    app.kubernetes.io/version: "0.14.1"
-    app.kubernetes.io/managed-by: kubectl
-spec:
-  name: nsa
-  description: National Security Agency - Kubernetes Hardening Guidance
-  version: "1.0"
-  cron: "0 */3 * * *"
-  controls:
-    - name: Non-root containers
-      description: 'Check that container is not running as root'
-      id: '1.0'
-      kinds:
-        - Workload
-      mapping:
-        scanner: config-audit
-        checks:
-          - id: KSV012
-      severity: 'MEDIUM'
-    - name: Immutable container file systems
-      description: 'Check that container root file system is immutable'
-      id: '1.1'
-      kinds:
-        - Workload
-      mapping:
-        scanner: config-audit
-        checks:
-          - id: KSV014
-      severity: 'LOW'
-    - name: Preventing privileged containers
-      description: 'Controls whether Pods can run privileged containers'
-      id: '1.2'
-      kinds:
-        - Workload
-      mapping:
-        scanner: config-audit
-        checks:
-          - id: KSV017
-      severity: 'HIGH'
-    - name: Share containers process namespaces
-      description: 'Controls whether containers can share process namespaces'
-      id: '1.3'
-      kinds:
-        - Workload
-      mapping:
-        scanner: config-audit
-        checks:
-          - id: KSV008
-      severity: 'HIGH'
-    - name: Share host process namespaces.
-      description: 'Controls whether share host process namespaces'
-      id: '1.4'
-      kinds:
-        - Workload
-      mapping:
-        scanner: config-audit
-        checks:
-          - id: KSV009
-      severity: 'HIGH'
-    - name: use the host network
-      description: 'Controls whether containers can use the host network'
-      id: '1.5'
-      kinds:
-        - Workload
-      mapping:
-        scanner: config-audit
-        checks:
-          - id: KSV010
-      severity: 'HIGH'
-    - name:  Run with root privileges or with root group membership
-      description: 'Controls whether container applications can run with root privileges or with root group membership'
-      id: '1.6'
-      kinds:
-        - Workload
-      mapping:
-        scanner: config-audit
-        checks:
-          - id: KSV029
-      severity: 'LOW'
-    - name: Restricts escalation to root privileges
-      description: 'Control check restrictions escalation to root privileges'
-      id: '1.7'
-      kinds:
-        - Workload
-      mapping:
-        scanner: config-audit
-        checks:
-          - id: KSV001
-      severity: 'MEDIUM'
-    - name: Sets the SELinux context of the container
-      description: 'Control checks if pod sets the SELinux context of the container'
-      id: '1.8'
-      kinds:
-        - Workload
-      mapping:
-        scanner: config-audit
-        checks:
-          - id: KSV002
-      severity: 'MEDIUM'
-    - name: Restrict a container's access to resources with AppArmor
-      description: 'Control checks the restriction of containers access to resources with AppArmor'
-      id: '1.9'
-      kinds:
-        - Workload
-      mapping:
-        scanner: config-audit
-        checks:
-          - id: KSV030
-      severity: 'MEDIUM'
-    - name: Sets the seccomp profile used to sandbox containers.
-      description: 'Control checks the sets the seccomp profile used to sandbox containers'
-      id: '1.10'
-      kinds:
-        - Workload
-      mapping:
-        scanner: config-audit
-        checks:
-          - id: KSV030
-      severity: 'LOW'
-    - name: Protecting Pod service account tokens
-      description: 'Control check whether disable secret token been mount ,automountServiceAccountToken: false'
-      id: '1.11'
-      kinds:
-        - Workload
-      mapping:
-        scanner: config-audit
-        checks:
-          - id: KSV036
-      severity: 'MEDIUM'
-    - name: Namespace kube-system should not be used by users
-      description: 'Control check whether Namespace kube-system is not be used by users'
-      id: '1.12'
-      kinds:
-        - NetworkPolicy
-      defaultStatus: 'FAIL'
-      mapping:
-        scanner: config-audit
-        checks:
-          - id: KSV037
-      severity: 'MEDIUM'
-    - name: Pod and/or namespace Selectors usage
-      description: 'Control check validate the pod and/or namespace Selectors usage'
-      id: '2.0'
-      kinds:
-        - Workload
-      mapping:
-        scanner: config-audit
-        checks:
-          - id: KSV038
-      severity: 'MEDIUM'
-    - name: Use CNI plugin that supports NetworkPolicy API
-      description: 'Control check whether check cni plugin installed	'
-      id: '3.0'
-      kinds:
-        - Node
-      mapping:
-        scanner: kube-bench
-        checks:
-          - id: 5.3.1
-      severity: 'CRITICAL'
-    - name: Use ResourceQuota policies to limit resources
-      description: 'Control check the use of ResourceQuota policy to limit aggregate resource usage within namespace'
-      id: '4.0'
-      kinds:
-        - ResourceQuota
-      defaultStatus: 'FAIL'
-      mapping:
-        scanner: config-audit
-        checks:
-          - id: "KSV040"
-      severity: 'MEDIUM'
-    - name: Use LimitRange policies to limit resources
-      description: 'Control check the use of LimitRange policy limit resource usage for namespaces or nodes'
-      id: '4.1'
-      kinds:
-        - ResourceQuota
-      defaultStatus: 'FAIL'
-      mapping:
-        scanner: config-audit
-        checks:
-          - id: "KSV039"
-      severity: 'MEDIUM'
-    - name: Control plan disable insecure port
-      description: 'Control check whether control plan disable insecure port'
-      id: '5.0'
-      kinds:
-        - Node
-      mapping:
-        scanner: kube-bench
-        checks:
-          - id: 1.2.19
-      severity: 'CRITICAL'
-    - name: Encrypt etcd communication
-      description: 'Control check whether etcd communication is encrypted'
-      id: '5.1'
-      kinds:
-        - Node
-      mapping:
-        scanner: kube-bench
-        checks:
-          - id: '2.1'
-      severity: 'CRITICAL'
-    - name: Ensure kube config file permission
-      description: 'Control check whether kube config file permissions'
-      id: '6.0'
-      kinds:
-        - Node
-      mapping:
-        scanner: kube-bench
-        checks:
-          - id: 4.1.3
-          - id: 4.1.4
-      severity: 'CRITICAL'
-    - name: Check that encryption resource has been set
-      description: 'Control checks whether encryption resource has been set'
-      id: '6.1'
-      kinds:
-        - Node
-      mapping:
-        scanner: kube-bench
-        checks:
-          - id: 1.2.31
-          - id: 1.2.32
-      severity: 'CRITICAL'
-    - name: Check encryption provider
-      description: 'Control checks whether encryption provider has been set'
-      id: '6.2'
-      kinds:
-        - Node
-      mapping:
-        scanner: kube-bench
-        checks:
-          - id: 1.2.3
-      severity: 'CRITICAL'
-    - name: Make sure anonymous-auth is unset
-      description: 'Control checks whether anonymous-auth is unset'
-      id: '7.0'
-      kinds:
-        - Node
-      mapping:
-        scanner: kube-bench
-        checks:
-          - id: 1.2.1
-      severity: 'CRITICAL'
-    - name: Make sure -authorization-mode=RBAC
-      description: 'Control check whether RBAC permission is in use'
-      id: '7.1'
-      kinds:
-        - Node
-      mapping:
-        scanner: kube-bench
-        checks:
-          - id: 1.2.7
-          - id: 1.2.8
-      severity: 'CRITICAL'
-    - name: Audit policy is configure
-      description: 'Control check whether audit policy is configure'
-      id: '8.0'
-      kinds:
-        - Node
-      mapping:
-        scanner: kube-bench
-        checks:
-          - id: 3.2.1
-      severity: 'HIGH'
-    - name: Audit log path is configure
-      description: 'Control check whether audit log path is configure'
-      id: '8.1'
-      kinds:
-        - Node
-      mapping:
-        scanner: kube-bench
-        checks:
-          - id: 1.2.22
-      severity: 'MEDIUM'
-    - name: Audit log aging
-      description: 'Control check whether audit log aging is configure'
-      id: '8.2'
-      kinds:
-        - Node
-      mapping:
-        scanner: kube-bench
-        checks:
-          - id: 1.2.23
-      severity: 'MEDIUM'
-

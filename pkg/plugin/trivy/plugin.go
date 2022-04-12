@@ -43,6 +43,7 @@ const (
 	keyTrivyGitHubToken            = "trivy.githubToken"
 	keyTrivySkipFiles              = "trivy.skipFiles"
 	keyTrivySkipDirs               = "trivy.skipDirs"
+	keyTrivyDBRepository           = "trivy.dbRepository"
 
 	keyTrivyServerURL           = "trivy.serverURL"
 	keyTrivyServerTokenHeader   = "trivy.serverTokenHeader"
@@ -55,6 +56,8 @@ const (
 	keyResourcesLimitsCPU      = "trivy.resources.limits.cpu"
 	keyResourcesLimitsMemory   = "trivy.resources.limits.memory"
 )
+
+const defaultDBRepository = "ghcr.io/aquasecurity/trivy-db"
 
 // Mode in which Trivy client operates.
 type Mode string
@@ -211,6 +214,10 @@ func (c Config) setResourceLimit(configKey string, k8sResourceList *corev1.Resou
 	return nil
 }
 
+func (c Config) GetDBRepository() (string, error) {
+	return c.GetRequiredData(keyTrivyDBRepository)
+}
+
 type plugin struct {
 	clock          ext.Clock
 	idGenerator    ext.IDGenerator
@@ -240,10 +247,11 @@ func NewPlugin(clock ext.Clock, idGenerator ext.IDGenerator, client client.Clien
 func (p *plugin) Init(ctx starboard.PluginContext) error {
 	return ctx.EnsureConfig(starboard.PluginConfig{
 		Data: map[string]string{
-			keyTrivyImageRef: "docker.io/aquasec/trivy:0.24.2",
+			keyTrivyImageRef: "docker.io/aquasec/trivy:0.25.2",
 			keyTrivySeverity: "UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL",
 			keyTrivyMode:     string(Standalone),
 			keyTrivyTimeout:  "5m0s",
+			keyTrivyDBRepository: defaultDBRepository,
 
 			keyResourcesRequestsCPU:    "100m",
 			keyResourcesRequestsMemory: "100M",
@@ -254,11 +262,6 @@ func (p *plugin) Init(ctx starboard.PluginContext) error {
 }
 
 func (p *plugin) GetScanJobSpec(ctx starboard.PluginContext, workload client.Object, credentials map[string]docker.Auth) (corev1.PodSpec, []*corev1.Secret, error) {
-	spec, err := kube.GetPodSpec(workload)
-	if err != nil {
-		return corev1.PodSpec{}, nil, err
-	}
-
 	config, err := p.newConfigFrom(ctx)
 	if err != nil {
 		return corev1.PodSpec{}, nil, err
@@ -274,9 +277,9 @@ func (p *plugin) GetScanJobSpec(ctx starboard.PluginContext, workload client.Obj
 	if command == Image {
 		switch mode {
 		case Standalone:
-			return p.getPodSpecForStandaloneMode(ctx, config, spec, credentials)
+			return p.getPodSpecForStandaloneMode(ctx, config, workload, credentials)
 		case ClientServer:
-			return p.getPodSpecForClientServerMode(ctx, config, spec, credentials)
+			return p.getPodSpecForClientServerMode(ctx, config, workload, credentials)
 		default:
 			return corev1.PodSpec{}, nil, fmt.Errorf("unrecognized trivy mode %q for command %q", mode, command)
 		}
@@ -294,14 +297,13 @@ func (p *plugin) GetScanJobSpec(ctx starboard.PluginContext, workload client.Obj
 	return corev1.PodSpec{}, nil, fmt.Errorf("unrecognized trivy command %q", command)
 }
 
-func (p *plugin) newSecretWithAggregateImagePullCredentials(spec corev1.PodSpec, credentials map[string]docker.Auth) *corev1.Secret {
+func (p *plugin) newSecretWithAggregateImagePullCredentials(obj client.Object, spec corev1.PodSpec, credentials map[string]docker.Auth) *corev1.Secret {
 	containerImages := kube.GetContainerImagesFromPodSpec(spec)
 	secretData := kube.AggregateImagePullSecretsData(containerImages, credentials)
 
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			// TODO Use deterministic names for secrets that hold image pull credentials, e.g. scan-vulnerabilityreport-<workload hash>-registry-creds
-			Name: p.idGenerator.GenerateID(),
+			Name: vulnerabilityreport.RegistryCredentialsSecretName(obj),
 		},
 		Data: secretData,
 	}
@@ -327,12 +329,17 @@ const (
 //
 //     trivy --cache-dir /tmp/trivy/.cache image --skip-update \
 //       --format json <container image>
-func (p *plugin) getPodSpecForStandaloneMode(ctx starboard.PluginContext, config Config, spec corev1.PodSpec, credentials map[string]docker.Auth) (corev1.PodSpec, []*corev1.Secret, error) {
+func (p *plugin) getPodSpecForStandaloneMode(ctx starboard.PluginContext, config Config, workload client.Object, credentials map[string]docker.Auth) (corev1.PodSpec, []*corev1.Secret, error) {
 	var secret *corev1.Secret
 	var secrets []*corev1.Secret
 
+	spec, err := kube.GetPodSpec(workload)
+	if err != nil {
+		return corev1.PodSpec{}, nil, err
+	}
+
 	if len(credentials) > 0 {
-		secret = p.newSecretWithAggregateImagePullCredentials(spec, credentials)
+		secret = p.newSecretWithAggregateImagePullCredentials(workload, spec, credentials)
 		secrets = append(secrets, secret)
 	}
 
@@ -342,6 +349,11 @@ func (p *plugin) getPodSpecForStandaloneMode(ctx starboard.PluginContext, config
 	}
 
 	trivyConfigName := starboard.GetPluginConfigMapName(Plugin)
+
+	dbRepository, err := config.GetDBRepository()
+	if err != nil {
+		return corev1.PodSpec{}, nil, err
+	}
 
 	requirements, err := config.GetResourceRequirements()
 	if err != nil {
@@ -411,6 +423,8 @@ func (p *plugin) getPodSpecForStandaloneMode(ctx starboard.PluginContext, config
 			"/tmp/trivy/.cache",
 			"image",
 			"--download-db-only",
+			"--db-repository",
+			dbRepository,
 		},
 		Resources: requirements,
 		VolumeMounts: []corev1.VolumeMount{
@@ -673,11 +687,16 @@ func (p *plugin) getPodSpecForStandaloneMode(ctx starboard.PluginContext, config
 //
 //     trivy client --remote <server URL> \
 //       --format json <container image>
-func (p *plugin) getPodSpecForClientServerMode(ctx starboard.PluginContext, config Config, spec corev1.PodSpec, credentials map[string]docker.Auth) (corev1.PodSpec, []*corev1.Secret, error) {
+func (p *plugin) getPodSpecForClientServerMode(ctx starboard.PluginContext, config Config, workload client.Object, credentials map[string]docker.Auth) (corev1.PodSpec, []*corev1.Secret, error) {
 	var secret *corev1.Secret
 	var secrets []*corev1.Secret
 	var volumeMounts []corev1.VolumeMount
 	var volumes []corev1.Volume
+
+	spec, err := kube.GetPodSpec(workload)
+	if err != nil {
+		return corev1.PodSpec{}, nil, err
+	}
 
 	trivyImageRef, err := config.GetImageRef()
 	if err != nil {
@@ -690,7 +709,7 @@ func (p *plugin) getPodSpecForClientServerMode(ctx starboard.PluginContext, conf
 	}
 
 	if len(credentials) > 0 {
-		secret = p.newSecretWithAggregateImagePullCredentials(spec, credentials)
+		secret = p.newSecretWithAggregateImagePullCredentials(workload, spec, credentials)
 		secrets = append(secrets, secret)
 	}
 
@@ -989,6 +1008,11 @@ func (p *plugin) getPodSpecForStandaloneFSMode(ctx starboard.PluginContext, conf
 
 	trivyConfigName := starboard.GetPluginConfigMapName(Plugin)
 
+	dbRepository, err := config.GetDBRepository()
+	if err != nil {
+		return corev1.PodSpec{}, nil, err
+	}
+
 	requirements, err := config.GetResourceRequirements()
 	if err != nil {
 		return corev1.PodSpec{}, nil, err
@@ -1046,6 +1070,8 @@ func (p *plugin) getPodSpecForStandaloneFSMode(ctx starboard.PluginContext, conf
 			"--download-db-only",
 			"--cache-dir",
 			"/var/starboard/trivy-db",
+			"--db-repository",
+			dbRepository,
 		},
 		Resources:    requirements,
 		VolumeMounts: volumeMounts,
@@ -1346,15 +1372,15 @@ func GetMirroredImage(image string, mirrors map[string]string) (string, error) {
 	return image, nil
 }
 
-func constructEnvVarSourceFromConfigMap(envName, trivyConfigName, trivyConfikey string) (res corev1.EnvVar) {
+func constructEnvVarSourceFromConfigMap(envName, configName, configKey string) (res corev1.EnvVar) {
 	res = corev1.EnvVar{
 		Name: envName,
 		ValueFrom: &corev1.EnvVarSource{
 			ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: trivyConfigName,
+					Name: configName,
 				},
-				Key:      trivyConfikey,
+				Key:      configKey,
 				Optional: pointer.BoolPtr(true),
 			},
 		},

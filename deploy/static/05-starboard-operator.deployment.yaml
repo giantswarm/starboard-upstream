@@ -7,7 +7,7 @@ metadata:
   labels:
     app.kubernetes.io/name: starboard-operator
     app.kubernetes.io/instance: starboard-operator
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
     app.kubernetes.io/managed-by: kubectl
   annotations:
     prometheus.io/path: /metrics
@@ -30,7 +30,7 @@ metadata:
   labels:
     app.kubernetes.io/name: starboard-operator
     app.kubernetes.io/instance: starboard-operator
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
     app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 1
@@ -50,13 +50,15 @@ spec:
       automountServiceAccountToken: true
       containers:
         - name: "starboard-operator"
-          image: "docker.io/aquasec/starboard-operator:0.14.1"
+          image: "docker.io/aquasec/starboard-operator:0.15.3"
           imagePullPolicy: IfNotPresent
           env:
             - name: OPERATOR_NAMESPACE
               value: "starboard-system"
             - name: OPERATOR_TARGET_NAMESPACES
-              value: "default"
+              value: ""
+            - name: OPERATOR_EXCLUDE_NAMESPACES
+              value: "kube-system,starboard-system"
             - name: OPERATOR_SERVICE_ACCOUNT
               value: "starboard-operator"
             - name: OPERATOR_LOG_DEV_MODE
@@ -79,8 +81,6 @@ spec:
               value: "true"
             - name: OPERATOR_VULNERABILITY_SCANNER_ENABLED
               value: "true"
-            - name: OPERATOR_CLUSTER_COMPLIANCE_ENABLED
-              value: "true"
             - name: OPERATOR_VULNERABILITY_SCANNER_SCAN_ONLY_CURRENT_REVISIONS
               value: "false"
             - name: OPERATOR_VULNERABILITY_SCANNER_REPORT_TTL
@@ -88,6 +88,8 @@ spec:
             - name: OPERATOR_CONFIG_AUDIT_SCANNER_ENABLED
               value: "false"
             - name: OPERATOR_CONFIG_AUDIT_SCANNER_BUILTIN
+              value: "true"
+            - name: OPERATOR_CLUSTER_COMPLIANCE_ENABLED
               value: "true"
           ports:
             - name: metrics

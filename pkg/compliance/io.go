@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/aquasecurity/starboard/pkg/starboard"
+
 	"github.com/aquasecurity/starboard/pkg/apis/aquasecurity/v1alpha1"
 	"github.com/aquasecurity/starboard/pkg/ext"
 	"github.com/emirpasic/gods/sets/hashset"
@@ -20,19 +22,21 @@ const (
 )
 
 type Mgr interface {
-	GenerateComplianceReport(ctx context.Context, spec v1alpha1.ReportSpec) (*v1alpha1.ClusterComplianceReport, error)
+	GenerateComplianceReport(ctx context.Context, spec v1alpha1.ReportSpec) error
 }
 
-func NewMgr(client client.Client, log logr.Logger) Mgr {
+func NewMgr(client client.Client, log logr.Logger, config starboard.ConfigData) Mgr {
 	return &cm{
 		client: client,
 		log:    log,
+		config: config,
 	}
 }
 
 type cm struct {
 	client client.Client
 	log    logr.Logger
+	config starboard.ConfigData
 }
 
 type summaryTotal struct {
@@ -47,7 +51,7 @@ type specDataMapping struct {
 	controlIdResources       map[string][]string
 }
 
-func (w *cm) GenerateComplianceReport(ctx context.Context, spec v1alpha1.ReportSpec) (*v1alpha1.ClusterComplianceReport, error) {
+func (w *cm) GenerateComplianceReport(ctx context.Context, spec v1alpha1.ReportSpec) error {
 	// map specs to key/value map for easy processing
 	smd := w.populateSpecDataToMaps(spec)
 	// map compliance scanner to resource data
@@ -55,19 +59,24 @@ func (w *cm) GenerateComplianceReport(ctx context.Context, spec v1alpha1.ReportS
 	// organized data by check id and it aggregated results
 	checkIdsToResults, err := w.checkIdsToResults(scannerResourceMap)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// map scanner checks results to control check results
 	controlChecks := w.controlChecksByScannerChecks(smd, checkIdsToResults)
 	// find summary totals
 	st := w.getTotals(controlChecks)
-	//publish compliance details report
+	//create cluster compliance details report
 	err = w.createComplianceDetailReport(ctx, spec, smd, checkIdsToResults, st)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("failed to create compliance detail report name: %s with error %w", strings.ToLower(fmt.Sprintf("%s-%s", spec.Name, "details")), err)
 	}
-	//generate compliance details report
-	return w.createComplianceReport(ctx, spec, st, controlChecks)
+	//generate cluster compliance report
+	updatedReport, err := w.createComplianceReport(ctx, spec, st, controlChecks)
+	if err != nil {
+		return err
+	}
+	// update compliance report status
+	return w.client.Status().Update(ctx, updatedReport)
 
 }
 
@@ -237,16 +246,19 @@ func (w *cm) createScanCheckResult(results []*ScannerCheckResult) []v1alpha1.Sca
 	ctta := make([]v1alpha1.ScannerCheckResult, 0)
 	for _, checkResult := range results {
 		var ctt v1alpha1.ScannerCheckResult
-		rds := make([]v1alpha1.ResultDetails, 0)
+		failedResultEntries := make([]v1alpha1.ResultDetails, 0)
 		for _, crd := range checkResult.Details {
+			if len(failedResultEntries) >= w.config.ComplianceFailEntriesLimit() {
+				continue
+			}
 			//control check detail relevant to fail checks only
 			if crd.Status == v1alpha1.PassStatus || crd.Status == v1alpha1.WarnStatus {
 				continue
 			}
-			rds = append(rds, v1alpha1.ResultDetails{Name: crd.Name, Namespace: crd.Namespace, Msg: crd.Msg, Status: crd.Status})
+			failedResultEntries = append(failedResultEntries, v1alpha1.ResultDetails{Name: crd.Name, Namespace: crd.Namespace, Msg: crd.Msg, Status: crd.Status})
 		}
-		if len(rds) > 0 {
-			ctt = v1alpha1.ScannerCheckResult{ID: checkResult.ID, ObjectType: checkResult.ObjectType, Remediation: checkResult.Remediation, Details: rds}
+		if len(failedResultEntries) > 0 {
+			ctt = v1alpha1.ScannerCheckResult{ID: checkResult.ID, ObjectType: checkResult.ObjectType, Remediation: checkResult.Remediation, Details: failedResultEntries}
 			ctta = append(ctta, ctt)
 		}
 	}

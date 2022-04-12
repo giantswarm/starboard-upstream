@@ -3,8 +3,8 @@ package operator
 import (
 	"context"
 	"fmt"
-	"github.com/aquasecurity/starboard/pkg/compliance"
 
+	"github.com/aquasecurity/starboard/pkg/compliance"
 	"github.com/aquasecurity/starboard/pkg/configauditreport"
 	"github.com/aquasecurity/starboard/pkg/ext"
 	"github.com/aquasecurity/starboard/pkg/kube"
@@ -35,7 +35,8 @@ func Start(ctx context.Context, buildInfo starboard.BuildInfo, operatorConfig et
 	}
 	setupLog.Info("Resolved install mode", "install mode", installMode,
 		"operator namespace", operatorNamespace,
-		"target namespaces", targetNamespaces)
+		"target namespaces", targetNamespaces,
+		"exclude namespaces", operatorConfig.ExcludeNamespaces)
 
 	// Set the default manager options.
 	options := manager.Options{
@@ -146,7 +147,7 @@ func Start(ctx context.Context, buildInfo starboard.BuildInfo, operatorConfig et
 			return fmt.Errorf("initializing %s plugin: %w", pluginContext.GetName(), err)
 		}
 
-		if err = (&controller.VulnerabilityReportReconciler{
+		if err = (&vulnerabilityreport.WorkloadController{
 			Logger:         ctrl.Log.WithName("reconciler").WithName("vulnerabilityreport"),
 			Config:         operatorConfig,
 			ConfigData:     starboardConfig,
@@ -251,9 +252,8 @@ func Start(ctx context.Context, buildInfo starboard.BuildInfo, operatorConfig et
 		logger := ctrl.Log.WithName("reconciler").WithName("clustercompliancereport")
 		cc := &compliance.ClusterComplianceReportReconciler{
 			Logger: logger,
-			Config: operatorConfig,
 			Client: mgr.GetClient(),
-			Mgr:    compliance.NewMgr(mgr.GetClient(), logger),
+			Mgr:    compliance.NewMgr(mgr.GetClient(), logger, starboardConfig),
 			Clock:  ext.NewSystemClock(),
 		}
 		if err := cc.SetupWithManager(mgr); err != nil {

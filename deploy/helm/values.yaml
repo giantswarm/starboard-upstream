@@ -5,10 +5,14 @@
 managedBy: Helm
 
 # targetNamespace defines where you want starboard-operator to operate. By
-# default, it will only operate in the namespace its installed in, but you can
-# specify another namespace, or a comma separated list of namespaces, or set it
-# to a blank string to let it operate in all namespaces.
-targetNamespaces: "{{ .Release.Namespace }}"
+# default, it's a blank string to select all namespaces, but you can specify
+# another namespace, or a comma separated list of namespaces.
+targetNamespaces: ""
+
+# excludeNamespaces is a comma separated list of namespaces (or glob patterns)
+# to be excluded from scanning. Only applicable in the all namespaces install
+# mode, i.e. when the targetNamespaces values is a blank string.
+excludeNamespaces: "kube-system,{{ .Release.Namespace }}"
 
 nameOverride: ""
 fullnameOverride: ""
@@ -43,7 +47,7 @@ operator:
   configAuditScannerBuiltIn: true
   # kubernetesBenchmarkEnabled the flag to enable CIS Kubernetes Benchmark scanner
   kubernetesBenchmarkEnabled: true
-  # clusterComplianceEnabled the flag to enable CIS Kubernetes Benchmark scanner
+  # clusterComplianceEnabled the flag to enable cluster compliance report generation
   clusterComplianceEnabled: true
   # batchDeleteLimit the maximum number of config audit reports deleted by the operator when the plugin's config has changed.
   batchDeleteLimit: 10
@@ -96,7 +100,7 @@ trivy:
   createConfig: true
 
   # imageRef the Trivy image reference.
-  imageRef: docker.io/aquasec/trivy:0.24.2
+  imageRef: docker.io/aquasec/trivy:0.25.2
 
   # mode is the Trivy client mode. Either Standalone or ClientServer. Depending
   # on the active mode other settings might be applicable or required.
@@ -173,8 +177,13 @@ trivy:
   #
   # serverCustomHeaders: "foo=bar"
 
+  dbRepository: "ghcr.io/aquasecurity/trivy-db"
+
+compliance:
+  # failEntriesLimit the flag to limit the number of fail entries per control check in the cluster compliance detail report
+  failEntriesLimit: 10
 kubeBench:
-  imageRef: docker.io/aquasec/kube-bench:v0.6.5
+  imageRef: docker.io/aquasec/kube-bench:v0.6.6
 
 polaris:
   # createConfig indicates whether to create config objects

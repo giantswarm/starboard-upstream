@@ -4,10 +4,10 @@
 YAML manifests called Helm [charts].
 
 To address shortcomings of [static YAML manifests](./kubectl.md) we provide the Helm chart to deploy the Starboard
-operator. The Helm chart supports all [install modes](./../configuration.md#install-modes).
+Operator. The Helm chart supports all [Install Modes](./../configuration.md#install-modes).
 
-As an example, let's install the operator in the `starboard-system` namespace and configure it to watch the `default`
-namespaces:
+As an example, let's install the operator in the `starboard-system` namespace and configure it to select all namespaces,
+except `kube-system` and `starboard-system`:
 
 1. Clone the chart directory:
    ```
@@ -24,7 +24,6 @@ namespaces:
    helm install starboard-operator ./deploy/helm \
      --namespace starboard-system \
      --create-namespace \
-     --set="targetNamespaces=default" \
      --set="trivy.ignoreUnfixed=true"
    ```
    Or install the chart from the Aqua chart repository:
@@ -32,19 +31,19 @@ namespaces:
    helm install starboard-operator aqua/starboard-operator \
      --namespace starboard-system \
      --create-namespace \
-     --set="targetNamespaces=default" \
      --set="trivy.ignoreUnfixed=true" \
      --version {{ var.chart_version }}
    ```
    There are many [values] in the chart that can be set to configure Starboard.
-3. Check that the `starboard-operator` Helm release is created in the `starboard-system` namespace:
+3. Check that the `starboard-operator` Helm release is created in the `starboard-system` namespace, and it has status
+   `deployed`:
    ```console
    $ helm list -n starboard-system
    NAME              	NAMESPACE         	REVISION	UPDATED                             	STATUS  	CHART                   	APP VERSION
    starboard-operator	starboard-system	1       	2021-01-27 20:09:53.158961 +0100 CET	deployed	starboard-operator-{{ var.chart_version }}	{{ git.tag[1:] }}
    ```
-   To confirm that the operator is running, check the number of replicas created by the `starboard-operator` Deployment
-   in the `starboard-system` namespace:
+   To confirm that the operator is running, check that the `starboard-operator` Deployment in the `starboard-system`
+   namespace is available and all its containers are ready:
    ```console
    $ kubectl get deployment -n starboard-system
    NAME                 READY   UP-TO-DATE   AVAILABLE   AGE
@@ -75,6 +74,8 @@ You have to manually delete custom resource definitions created by the `helm ins
     kubectl delete crd ciskubebenchreports.aquasecurity.github.io
     kubectl delete crd kubehunterreports.aquasecurity.github.io
     kubectl delete crd clusterconfigauditreports.aquasecurity.github.io
+    kubectl delete crd clustercompliancereports.aquasecurity.github.io
+    kubectl delete crd clustercompliancedetailreports.aquasecurity.github.io
     ```
 
 [Helm]: https://helm.sh/
