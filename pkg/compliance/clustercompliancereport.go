@@ -7,7 +7,6 @@ import (
 
 	"github.com/aquasecurity/starboard/pkg/apis/aquasecurity/v1alpha1"
 	"github.com/aquasecurity/starboard/pkg/ext"
-	"github.com/aquasecurity/starboard/pkg/operator/etc"
 	"github.com/aquasecurity/starboard/pkg/utils"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -20,7 +19,6 @@ import (
 
 type ClusterComplianceReportReconciler struct {
 	logr.Logger
-	etc.Config
 	client.Client
 	Mgr
 	ext.Clock
@@ -60,12 +58,11 @@ func (r *ClusterComplianceReportReconciler) generateComplianceReport(ctx context
 			return fmt.Errorf("failed to check report cron expression %w", err)
 		}
 		if utils.DurationExceeded(durationToNextGeneration) {
-			updatedReport, err := r.Mgr.GenerateComplianceReport(ctx, report.Spec)
+			err = r.Mgr.GenerateComplianceReport(ctx, report.Spec)
 			if err != nil {
-				return fmt.Errorf("failed to generate new report %w", err)
+				log.Error(err, "failed to generate compliance report")
 			}
-			// update compliance report status
-			return r.Status().Update(ctx, updatedReport)
+			return err
 		}
 		log.V(1).Info("RequeueAfter", "durationToNextGeneration", durationToNextGeneration)
 		ctrlResult.RequeueAfter = durationToNextGeneration

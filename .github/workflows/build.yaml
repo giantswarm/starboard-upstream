@@ -29,19 +29,28 @@ env:
   GO_VERSION: "1.17"
   KIND_VERSION: "v0.11.1"
   KIND_IMAGE: "kindest/node:v1.21.1@sha256:69860bda5563ac81e3c0057d654b5253219618a22ec3a346306239bba8cfa1a6"
+
+# Disable permissions granted to the GITHUB_TOKEN for all the available scopes.
+permissions: {}
+
+# Cancel any in-flight jobs for the same PR branch so there's only one active at a time.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify-code:
     name: Verify code
     runs-on: ubuntu-20.04
     steps:
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Cached Go dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -65,12 +74,12 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Checkout code
         uses: actions/checkout@v3
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -79,7 +88,7 @@ jobs:
       - name: Run unit tests
         run: make unit-tests
       - name: Upload code coverage
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           files: ./coverage.txt
   itest-starboard-cli:
@@ -91,12 +100,12 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Checkout code
         uses: actions/checkout@v3
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -119,7 +128,7 @@ jobs:
           KUBECONFIG: /home/runner/.kube/config
           STARBOARD_TEST_CLI_LOG_LEVEL: "0"
       - name: Upload code coverage
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           files: ./itest/starboard/coverage.txt
   itest-starboard-operator:
@@ -131,12 +140,12 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Checkout code
         uses: actions/checkout@v3
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -170,7 +179,7 @@ jobs:
           OPERATOR_NAMESPACE: starboard-system
           OPERATOR_TARGET_NAMESPACES: default
       - name: Upload code coverage
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           files: ./itest/starboard-operator/coverage.txt
   integration-operator-conftest:
@@ -182,12 +191,12 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Checkout code
         uses: actions/checkout@v3
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -218,11 +227,11 @@ jobs:
         env:
           KUBECONFIG: /home/runner/.kube/config
       - name: Upload code coverage
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           files: ./itest/starboard-operator/configauditreport/conftest/coverage.txt
   test-helm-chart:
-    if: "false" # TODO It's broken on a release candidate PRs because it's using container image that has not been released yet.
+    if: "false"  # TODO It's broken on a release candidate PRs because it's using container image that has not been released yet.
     name: Test Helm Chart
     needs:
       - itest-starboard-cli
@@ -231,22 +240,22 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v3 #v2.4.0
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Install Helm
-        uses: azure/setup-helm@18bc76811624f360dbd7f18c2d4ecb32c7b87bab #v1.1
+        uses: azure/setup-helm@18bc76811624f360dbd7f18c2d4ecb32c7b87bab  # v1.1
         with:
           version: v3.5.0
       - name: Set up python
-        uses: actions/setup-python@0ebf233433c08fb9061af664d501c3f3ff0e9e20 #v2.3.0
+        uses: actions/setup-python@98f2ad02fd48d057ee3b4d4f66525b231c3e52b6  # v2.3.0
         with:
           python-version: 3.7
       - name: Setup Chart Linting
         id: lint
-        uses: helm/chart-testing-action@dae259e86a35ff09145c0805e2d7dd3f7207064a #v2.1.0
+        uses: helm/chart-testing-action@dae259e86a35ff09145c0805e2d7dd3f7207064a  # v2.1.0
       - name: Setup Kubernetes cluster (KIND)
-        uses: helm/kind-action@94729529f85113b88f4f819c17ce61382e6d8478 #v1.2.0
+        uses: helm/kind-action@94729529f85113b88f4f819c17ce61382e6d8478  # v1.2.0
         with:
           version: ${{ env.KIND_VERSION }}
           image: ${{ env.KIND_IMAGE }}

@@ -5,7 +5,7 @@ metadata:
   name: clusterconfigauditreports.aquasecurity.github.io
   labels:
     app.kubernetes.io/managed-by: starboard
-    app.kubernetes.io/version: "0.14.1"
+    app.kubernetes.io/version: "0.15.3"
 spec:
   group: aquasecurity.github.io
   versions:
@@ -23,9 +23,9 @@ spec:
           description: The age of the report
         - jsonPath: .report.summary.criticalCount
           type: integer
-          name: Critial
+          name: Critical
           priority: 1
-          description: The number of failed checks with critial severity
+          description: The number of failed checks with critical severity
         - jsonPath: .report.summary.highCount
           type: integer
           name: High
