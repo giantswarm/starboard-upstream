@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/aquasecurity/starboard/pkg/apis/aquasecurity/v1alpha1"
@@ -24,6 +25,10 @@ import (
 const (
 	// Plugin the name of this plugin.
 	Plugin = "Trivy"
+)
+
+const (
+	AWSECR_Image_Regex = "^\\d+\\.dkr\\.ecr\\.(\\w+-\\w+-\\d+)\\.amazonaws\\.com\\/"
 )
 
 const (
@@ -247,10 +252,10 @@ func NewPlugin(clock ext.Clock, idGenerator ext.IDGenerator, client client.Clien
 func (p *plugin) Init(ctx starboard.PluginContext) error {
 	return ctx.EnsureConfig(starboard.PluginConfig{
 		Data: map[string]string{
-			keyTrivyImageRef: "docker.io/aquasec/trivy:0.25.2",
-			keyTrivySeverity: "UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL",
-			keyTrivyMode:     string(Standalone),
-			keyTrivyTimeout:  "5m0s",
+			keyTrivyImageRef:     "docker.io/aquasec/trivy:0.25.2",
+			keyTrivySeverity:     "UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL",
+			keyTrivyMode:         string(Standalone),
+			keyTrivyTimeout:      "5m0s",
 			keyTrivyDBRepository: defaultDBRepository,
 
 			keyResourcesRequestsCPU:    "100m",
@@ -586,6 +591,14 @@ func (p *plugin) getPodSpecForStandaloneMode(ctx starboard.PluginContext, config
 			env = append(env, corev1.EnvVar{
 				Name:  "TRIVY_IGNOREFILE",
 				Value: "/etc/trivy/.trivyignore",
+			})
+		}
+
+		region := CheckAwsEcrPrivateRegistry(c.Image)
+		if region != "" {
+			env = append(env, corev1.EnvVar{
+				Name:  "AWS_REGION",
+				Value: region,
 			})
 		}
 
@@ -1386,4 +1399,11 @@ func constructEnvVarSourceFromConfigMap(envName, configName, configKey string) (
 		},
 	}
 	return
+}
+
+func CheckAwsEcrPrivateRegistry(ImageUrl string) string {
+	if len(regexp.MustCompile(AWSECR_Image_Regex).FindAllStringSubmatch(ImageUrl, -1)) != 0 {
+		return regexp.MustCompile(AWSECR_Image_Regex).FindAllStringSubmatch(ImageUrl, -1)[0][1]
+	}
+	return ""
 }
